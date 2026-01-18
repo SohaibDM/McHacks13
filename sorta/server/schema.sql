@@ -1,6 +1,6 @@
--- Create users table
+-- Create users table (use short string IDs - 6 chars)
 CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
+  id VARCHAR(6) PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Create folders table
 CREATE TABLE IF NOT EXISTS folders (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  user_id VARCHAR(6) REFERENCES users(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   parent_id INTEGER REFERENCES folders(id) ON DELETE CASCADE,
   path TEXT NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS folders (
 -- Create files table
 CREATE TABLE IF NOT EXISTS files (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  user_id VARCHAR(6) REFERENCES users(id) ON DELETE CASCADE,
   folder_id INTEGER REFERENCES folders(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   original_name VARCHAR(255) NOT NULL,

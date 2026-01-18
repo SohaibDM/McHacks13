@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { customAlphabet } from 'nanoid';
 import pool from '../db';
 
 const router = Router();
@@ -30,10 +31,14 @@ router.post('/register', async (req: Request, res: Response) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Generate a short 6-char user id
+    const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 6);
+    const userId = nanoid();
+
     // Create user
     const result = await pool.query(
-      'INSERT INTO users (email, password, name) VALUES ($1, $2, $3) RETURNING id, email, name, created_at',
-      [email, hashedPassword, name]
+      'INSERT INTO users (id, email, password, name) VALUES ($1, $2, $3, $4) RETURNING id, email, name, created_at',
+      [userId, email, hashedPassword, name]
     );
 
     const user = result.rows[0];
@@ -126,7 +131,7 @@ router.get('/me', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'No token provided' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number; email: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
 
     const result = await pool.query(
       'SELECT id, email, name, created_at FROM users WHERE id = $1',
