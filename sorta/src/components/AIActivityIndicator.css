@@ -1,0 +1,95 @@
+.ai-activity-indicator {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 320px;
+  background: var(--bg-primary);
+  border: 1px solid var(--ai-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  z-index: 100;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.ai-activity-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: var(--ai-bg);
+  border-bottom: 1px solid var(--ai-border);
+  color: var(--accent-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ai-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.ai-activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.625rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  transition: all 0.3s;
+}
+
+.ai-activity-item.completed {
+  opacity: 0.7;
+}
+
+.activity-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--accent-light);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.activity-icon svg {
+  color: var(--accent-primary);
+}
+
+.activity-message {
+  flex: 1;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}

@@ -1,0 +1,103 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1.5rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  height: 64px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex: 1;
+}
+
+.header-logo {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin: 0;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  max-width: 400px;
+  flex: 1;
+}
+
+.search-bar svg {
+  color: var(--text-tertiary);
+}
+
+.search-bar input {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  flex: 1;
+  outline: none;
+}
+
+.search-bar input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.header-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-primary);
+}
+
+.icon-button {
+  padding: 0.5rem;
+}
+
+.upload-button {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+}
+
+.upload-button:hover {
+  background: var(--accent-dark);
+  border: none;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
