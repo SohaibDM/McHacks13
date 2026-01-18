@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import authRoutes from './routes/auth';
+import storageRoutes from './routes/storage';
 import path from 'path';
 
 // Load .env from server directory
@@ -32,6 +33,7 @@ app.use(session({
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/storage', storageRoutes);
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Sorta API is running' });

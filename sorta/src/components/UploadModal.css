@@ -267,3 +267,30 @@ input:checked + .slider:before {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.upload-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.button.secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

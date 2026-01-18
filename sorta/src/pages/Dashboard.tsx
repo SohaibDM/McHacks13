@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import FileTree from '../components/FileTree';
@@ -13,14 +13,20 @@ const Dashboard: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [selectedFolder, setSelectedFolder] = useState<any>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleUploadComplete = useCallback(() => {
+    setRefreshKey(prev => prev + 1);
+  }, []);
 
   return (
     <div className="dashboard">
       <Header />
       <div className="dashboard-content">
-        <Sidebar />
+        <Sidebar onUploadClick={() => setShowUploadModal(true)} />
         <div className="main-content">
           <FileTree 
+            key={refreshKey}
             onFileSelect={setSelectedFile}
             onFolderSelect={setSelectedFolder}
             selectedFolder={selectedFolder}
@@ -32,6 +38,7 @@ const Dashboard: React.FC = () => {
         <UploadModal 
           folder={selectedFolder}
           onClose={() => setShowUploadModal(false)}
+          onUploadComplete={handleUploadComplete}
         />
       )}
       <AIActivityIndicator />

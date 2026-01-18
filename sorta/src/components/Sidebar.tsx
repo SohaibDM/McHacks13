@@ -1,10 +1,19 @@
 import React from 'react';
-import { Home, Star, Clock, Trash2, HardDrive } from 'lucide-react';
+import { Home, Star, Clock, Trash2, HardDrive, Upload } from 'lucide-react';
 import './Sidebar.css';
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  onUploadClick?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ onUploadClick }) => {
   return (
     <aside className="sidebar">
+      <button className="upload-button" onClick={onUploadClick}>
+        <Upload size={20} />
+        <span>Upload</span>
+      </button>
+
       <nav className="sidebar-nav">
         <button className="sidebar-item active">
           <Home size={20} />

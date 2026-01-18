@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Folder, 
   File, 
@@ -9,42 +9,36 @@ import {
   FileVideo,
   FileAudio,
   FileArchive,
-  FileCode
+  FileCode,
+  Loader2,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { getFileTree, FileNode } from '../services/storageApi';
 import './FileTree.css';
 
 interface FileItem {
   id: string;
   name: string;
   type: 'file' | 'folder';
+  path: string;
   aiSorted?: boolean;
   aiReason?: string;
   children?: FileItem[];
 }
 
-// Mock data - Replace with actual API call
-const mockData: FileItem[] = [
-  {
-    id: '1',
-    name: 'Work Documents',
-    type: 'folder',
-    children: [
-      { id: '2', name: 'Q1 Report.pdf', type: 'file', aiSorted: true, aiReason: 'Sorted by date and topic' },
-      { id: '3', name: 'Meeting Notes.docx', type: 'file' },
-    ]
-  },
-  {
-    id: '4',
-    name: 'Personal',
-    type: 'folder',
-    children: [
-      { id: '5', name: 'Photos', type: 'folder', children: [] },
-      { id: '6', name: 'Receipts', type: 'folder', children: [] },
-    ]
-  },
-  { id: '7', name: 'Tax Return 2025.pdf', type: 'file', aiSorted: true, aiReason: 'Organized by year and category' },
-  { id: '8', name: 'Vacation Photo.jpg', type: 'file' },
-];
+// Convert FileNode from API to FileItem
+const convertToFileItem = (node: FileNode, idPrefix: string = ''): FileItem => {
+  const id = idPrefix + node.path;
+  return {
+    id,
+    name: node.name,
+    type: node.type,
+    path: node.path,
+    children: node.children?.map((child, i) => convertToFileItem(child, id + '_' + i))
+  };
+};
 
 const getFileIcon = (name: string) => {
   const ext = name.split('.').pop()?.toLowerCase();
@@ -85,7 +79,37 @@ interface FileTreeProps {
 }
 
 const FileTree: React.FC<FileTreeProps> = ({ onFileSelect, onFolderSelect, selectedFolder }) => {
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['1', '4']));
+  const { user, token } = useAuth();
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+  const loadFiles = async () => {
+    if (!user || !token) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const tree = await getFileTree(token, user.id);
+      const items = tree.map((node, i) => convertToFileItem(node, 'root_' + i));
+      setFiles(items);
+      
+      // Auto-expand root folders
+      const rootIds = items.filter(i => i.type === 'folder').map(i => i.id);
+      setExpandedFolders(new Set(rootIds));
+    } catch (err: any) {
+      console.error('Failed to load files:', err);
+      setError(err.message || 'Failed to load files');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFiles();
+  }, [user, token]);
 
   const toggleFolder = (id: string) => {
     const newExpanded = new Set(expandedFolders);
@@ -150,9 +174,31 @@ const FileTree: React.FC<FileTreeProps> = ({ onFileSelect, onFolderSelect, selec
     <div className="file-tree">
       <div className="file-tree-header">
         <h2>Files</h2>
+        <button className="refresh-button" onClick={loadFiles} disabled={loading}>
+          <RefreshCw size={16} className={loading ? 'spin' : ''} />
+        </button>
       </div>
       <div className="file-tree-content">
-        {mockData.map(item => renderItem(item))}
+        {loading && files.length === 0 ? (
+          <div className="file-tree-loading">
+            <Loader2 size={24} className="spin" />
+            <span>Loading files...</span>
+          </div>
+        ) : error ? (
+          <div className="file-tree-error">
+            <AlertCircle size={24} />
+            <span>{error}</span>
+            <button onClick={loadFiles}>Retry</button>
+          </div>
+        ) : files.length === 0 ? (
+          <div className="file-tree-empty">
+            <Folder size={32} />
+            <span>No files yet</span>
+            <p>Upload your first file to get started</p>
+          </div>
+        ) : (
+          files.map(item => renderItem(item))
+        )}
       </div>
     </div>
   );

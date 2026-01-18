@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { customAlphabet } from 'nanoid';
 import pool from '../db';
+import gumloopClient from '../lib/gumloop';
 
 const router = Router();
 
@@ -48,6 +49,11 @@ router.post('/register', async (req: Request, res: Response) => {
       'INSERT INTO folders (user_id, name, path) VALUES ($1, $2, $3)',
       [user.id, 'My Files', '/']
     );
+
+    // Initialize user's S3 folder in Gumloop (async, don't wait)
+    gumloopClient.createFolder(user.id, '/').catch((err: any) => {
+      console.error('Failed to init S3 folder for user:', user.id, err);
+    });
 
     // Generate JWT token
     const token = jwt.sign(

@@ -27,7 +27,7 @@ const AIActivityIndicator: React.FC = () => {
       const randomMessage = messages[Math.floor(Math.random() * messages.length)];
       
       const newActivity: AIActivity = {
-        id: Date.now().toString(),
+        id: `${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
         message: randomMessage,
         status: 'processing',
         timestamp: new Date()
