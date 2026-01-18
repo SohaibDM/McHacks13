@@ -5,7 +5,8 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const { S3Client, PutBucketCorsCommand } = require('@aws-sdk/client-s3');
 
-const bucket = process.env.S3_BUCKET;
+// Allow passing bucket via CLI arg or env for convenience (CLI arg takes precedence)
+const bucket = process.argv[2] || process.env.S3_BUCKET;
 const region = process.env.AWS_REGION || 'us-east-1';
 
 if (!bucket) {
@@ -16,6 +17,7 @@ if (!bucket) {
 const client = new S3Client({ region });
 
 async function setCors() {
+  console.log(`Setting CORS on bucket '${bucket}' in region '${region}'...`);
   const params = {
     Bucket: bucket,
     CORSConfiguration: {

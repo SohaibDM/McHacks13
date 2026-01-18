@@ -11,6 +11,7 @@ export interface FileNode {
   name: string;
   type: 'file' | 'folder';
   path: string;
+  s3Key?: string;
   children?: FileNode[];
 }
 
@@ -88,6 +89,27 @@ export const presignUpload = async (
     { user_id: userId, file_name: fileName, content_type: contentType },
     { headers: getHeaders(token) }
   );
+  return response.data;
+};
+
+// Request a presigned GET URL for an existing object
+export const getDownloadUrl = async (
+  token: string,
+  params: { s3_uri?: string; key?: string; user_id?: string; path?: string }
+): Promise<{ download_url: string; object_url: string; key: string }> => {
+  const response = await axios.post(`${API_URL}/download`, params, { headers: getHeaders(token) });
+  return response.data;
+};
+
+// Request a presigned GET URL intended for inline preview. Backend should accept
+// a `disposition` flag (inline | attachment) or accept this call and generate
+// a presigned URL with `ResponseContentDisposition=inline; filename="<name>"`
+export const getPreviewUrl = async (
+  token: string,
+  params: { s3_uri?: string; key?: string; user_id?: string; path?: string; filename?: string }
+): Promise<{ download_url: string; object_url: string; key: string }> => {
+  const body = { ...(params as any), disposition: 'inline' };
+  const response = await axios.post(`${API_URL}/download`, body, { headers: getHeaders(token) });
   return response.data;
 };
 
@@ -207,4 +229,36 @@ export const getFileTree = async (
   }
 
   throw new Error('Failed to get file structure');
+};
+
+// Delete a file or folder via Gumloop
+export const deleteItem = async (
+  token: string,
+  userId: string,
+  path: string
+): Promise<{ success: boolean; run_id?: string }> => {
+  const response = await axios.post(`${API_URL}/delete`, { user_id: userId, path }, { headers: getHeaders(token) });
+  return response.data;
+};
+
+// Move a file via Gumloop
+export const moveItem = async (
+  token: string,
+  userId: string,
+  path: string,
+  destination: string
+): Promise<{ success: boolean; run_id?: string }> => {
+  const response = await axios.post(`${API_URL}/move`, { user_id: userId, path, destination }, { headers: getHeaders(token) });
+  return response.data;
+};
+
+// Copy a file via Gumloop
+export const copyItem = async (
+  token: string,
+  userId: string,
+  path: string,
+  destination: string
+): Promise<{ success: boolean; run_id?: string }> => {
+  const response = await axios.post(`${API_URL}/copy`, { user_id: userId, path, destination }, { headers: getHeaders(token) });
+  return response.data;
 };

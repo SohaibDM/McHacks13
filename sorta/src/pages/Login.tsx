@@ -30,7 +30,9 @@ const Login: React.FC = () => {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <h1 className="auth-logo">Sorta</h1>
+          <h1 className="auth-logo">
+            <img src="./Sorta-logo.png" alt="Sorta" className="auth-logo-img" />
+          </h1>
           <p className="auth-subtitle">Sign in to your account</p>
         </div>
 

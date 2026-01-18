@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import FileTree from '../components/FileTree';
-import FilePreview from '../components/FilePreview';
 import UploadModal from '../components/UploadModal';
 import Header from '../components/Header';
 import AIActivityIndicator from '../components/AIActivityIndicator';
@@ -10,7 +9,6 @@ import './Dashboard.css';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const [selectedFile, setSelectedFile] = useState<any>(null);
   const [selectedFolder, setSelectedFolder] = useState<any>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -27,11 +25,10 @@ const Dashboard: React.FC = () => {
         <div className="main-content">
           <FileTree 
             key={refreshKey}
-            onFileSelect={setSelectedFile}
+            onFileSelect={() => {}}
             onFolderSelect={setSelectedFolder}
             selectedFolder={selectedFolder}
           />
-          <FilePreview file={selectedFile} />
         </div>
       </div>
       {showUploadModal && (

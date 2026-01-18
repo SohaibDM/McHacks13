@@ -43,6 +43,10 @@ export const FLOW_IDS = {
   UPLOAD_AUTO: 'wdSh1nkbEFwus4kHRWSX18',
   CREATE_FOLDER: '2fe4myZScFA8kYmYN2VgdG',
   GET_STRUCTURE: 'vkToNxWifgpDvhx9WbEotr',
+  // Added flows for file management
+  DELETE_FILE: 'xgbF5bZUzvyPNb6n3fpfqd',
+  MOVE_FILE: 'wdY5qwbicwEH3GqjtNJcZC',
+  COPY_FILE: 'j3fyngEtUFEhnBBMNXzZfN',
 } as const;
 
 // ----- Gumloop Client Class -----
@@ -281,6 +285,52 @@ class GumloopClient {
       pipelineInputs: {
         'Folder path': normalizedPath,
         'user id': appUserId,
+      },
+    });
+  }
+
+  /**
+   * Flow E: Delete file/folder via Gumloop pipeline
+   */
+  async deleteFile(appUserId: string, path: string): Promise<string> {
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return this.startFlow({
+      savedItemId: FLOW_IDS.DELETE_FILE,
+      pipelineInputs: {
+        'user id': appUserId,
+        'path': normalizedPath,
+      },
+    });
+  }
+
+  /**
+   * Flow F: Move file to destination
+   */
+  async moveFile(appUserId: string, path: string, destination: string): Promise<string> {
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const normalizedDest = destination.startsWith('/') ? destination : `/${destination}`;
+    return this.startFlow({
+      savedItemId: FLOW_IDS.MOVE_FILE,
+      pipelineInputs: {
+        'user id': appUserId,
+        'path': normalizedPath,
+        'destination': normalizedDest,
+      },
+    });
+  }
+
+  /**
+   * Flow G: Copy file to destination
+   */
+  async copyFile(appUserId: string, path: string, destination: string): Promise<string> {
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const normalizedDest = destination.startsWith('/') ? destination : `/${destination}`;
+    return this.startFlow({
+      savedItemId: FLOW_IDS.COPY_FILE,
+      pipelineInputs: {
+        'user id': appUserId,
+        'path': normalizedPath,
+        'destination': normalizedDest,
       },
     });
   }

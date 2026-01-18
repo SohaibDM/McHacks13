@@ -31,6 +31,11 @@ if (S3_REGION && S3_BUCKET) {
   console.warn('S3_REGION or S3_BUCKET not set - presigned upload endpoint will be disabled');
 }
 
+// Create typed aliases so TypeScript can pass these into AWS SDK calls
+// (the env vars are `string | undefined` by default).
+const S3_REGION_NAME: string = S3_REGION || '';
+const S3_BUCKET_NAME: string = S3_BUCKET || '';
+
 const router = Router();
 
 // ----- Upload Manual (user picks folder) -----
@@ -180,7 +185,7 @@ router.post('/presign', async (req: Request, res: Response) => {
     const key = `${user_id}/${Date.now()}_${safeFileName}`;
 
     const command = new PutObjectCommand({
-      Bucket: S3_BUCKET,
+      Bucket: S3_BUCKET_NAME,
       Key: key,
       ContentType: content_type || 'application/octet-stream',
     });
@@ -190,11 +195,11 @@ router.post('/presign', async (req: Request, res: Response) => {
     // Provide a presigned GET URL that Gumloop (or any third-party) can use to fetch the file.
     // Presigned GET is preferred over relying on public object URLs because objects uploaded via
     // presigned PUT are not public by default.
-    const getCommand = new GetObjectCommand({ Bucket: S3_BUCKET, Key: key });
-    const downloadUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 3600 });
+    const getCommand = new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: key });
+    const downloadUrl = await getSignedUrl(s3Client!, getCommand, { expiresIn: 3600 });
 
     // Also expose the canonical object URL (not encoded) for reference/debugging if needed.
-    const objectUrl = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`;
+    const objectUrl = `https://${S3_BUCKET_NAME}.s3.${S3_REGION_NAME}.amazonaws.com/${key}`;
 
     res.json({ success: true, upload_url: uploadUrl, object_url: objectUrl, download_url: downloadUrl, key });
   } catch (error: any) {
@@ -228,6 +233,48 @@ router.post('/folder', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Create folder error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ----- Delete File/Folder -----
+router.post('/delete', async (req: Request, res: Response) => {
+  try {
+    const { user_id, path } = req.body;
+    if (!user_id || !path) return res.status(400).json({ error: 'Missing required fields: user_id, path' });
+
+    const runId = await gumloopClient.deleteFile(user_id, path);
+    res.json({ success: true, run_id: runId, message: 'Delete started' });
+  } catch (error: any) {
+    console.error('Delete flow error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ----- Move File -----
+router.post('/move', async (req: Request, res: Response) => {
+  try {
+    const { user_id, path, destination } = req.body;
+    if (!user_id || !path || !destination) return res.status(400).json({ error: 'Missing required fields: user_id, path, destination' });
+
+    const runId = await gumloopClient.moveFile(user_id, path, destination);
+    res.json({ success: true, run_id: runId, message: 'Move started' });
+  } catch (error: any) {
+    console.error('Move flow error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ----- Copy File -----
+router.post('/copy', async (req: Request, res: Response) => {
+  try {
+    const { user_id, path, destination } = req.body;
+    if (!user_id || !path || !destination) return res.status(400).json({ error: 'Missing required fields: user_id, path, destination' });
+
+    const runId = await gumloopClient.copyFile(user_id, path, destination);
+    res.json({ success: true, run_id: runId, message: 'Copy started' });
+  } catch (error: any) {
+    console.error('Copy flow error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -273,6 +320,157 @@ router.get('/run', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Get run error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ----- Generate presigned GET URL for an existing object -----
+router.post('/download', async (req: Request, res: Response) => {
+  try {
+    if (!s3Client) return res.status(500).json({ error: 'S3 client not configured' });
+
+    const { s3_uri, key, user_id, path } = req.body as any;
+
+    let objectKey: string | undefined;
+    let requestedBucket = S3_BUCKET_NAME; // default
+
+    if (key) {
+      objectKey = key;
+    } else if (s3_uri) {
+      // support s3://bucket/key and https://bucket.s3... URLs
+      if (s3_uri.startsWith('s3://')) {
+        const parts = s3_uri.replace('s3://', '').split('/');
+        // first part is bucket name
+        const bucketFromUri = parts.shift();
+        if (bucketFromUri) requestedBucket = bucketFromUri;
+        objectKey = parts.join('/');
+      } else {
+        try {
+          const u = new URL(s3_uri);
+          // If hostname looks like '<bucket>.s3...' extract bucket
+          const hostParts = u.hostname.split('.');
+          if (hostParts.length > 0 && hostParts[1] === 's3') {
+            requestedBucket = hostParts[0];
+          }
+          objectKey = decodeURIComponent(u.pathname.replace(/^\//, ''));
+        } catch (e) {
+          objectKey = undefined;
+        }
+      }
+    } else if (user_id && path) {
+      // Build key from user_id and path
+      const p = path.startsWith('/') ? path.slice(1) : path;
+      objectKey = `${user_id}/${p}`;
+    }
+
+    if (!objectKey) return res.status(400).json({ error: 'Missing key or s3_uri or (user_id+path)' });
+
+    const { HeadObjectCommand, ListObjectsV2Command, GetObjectCommand } = require('@aws-sdk/client-s3');
+
+    // Helper to check object existence in a given bucket
+    const exists = async (bucketName: string, keyToCheck: string) => {
+      try {
+        await s3Client!.send(new HeadObjectCommand({ Bucket: bucketName, Key: keyToCheck }));
+        return true;
+      } catch (err: any) {
+        return false;
+      }
+    };
+
+    // Try requested bucket first
+    let finalKey = objectKey;
+    let finalBucket = requestedBucket;
+
+    if (!(await exists(finalBucket, finalKey))) {
+      // If not found in requested bucket, try to lookup within that bucket under the user prefix
+      if (user_id) {
+        const prefix = `${user_id}/`;
+        try {
+          const listResp: any = await s3Client!.send(new ListObjectsV2Command({ Bucket: finalBucket, Prefix: prefix, MaxKeys: 1000 }));
+          const items: any[] = listResp.Contents || [];
+
+          // Normalize helper: lowercase, replace + and %20 with space, remove punctuation
+          const normalize = (s: string | undefined) => {
+            if (!s) return '';
+            let t = String(s);
+            t = t.replace(/\+/g, ' ').replace(/%20/gi, ' ');
+            try { t = decodeURIComponent(t); } catch { /* ignore */ }
+            t = t.replace(/[^a-z0-9 ]/gi, ' ').toLowerCase().trim();
+            t = t.replace(/\s+/g, ' ');
+            return t;
+          };
+
+          const targetBaseRaw = finalKey.split('/').pop() || '';
+          const targetNorm = normalize(targetBaseRaw);
+
+          const candidates: { Key: string; LastModified?: Date }[] = [];
+          for (const it of items) {
+            if (!it || !it.Key) continue;
+            const fullKey: string = it.Key;
+            const base = fullKey.split('/').pop() || '';
+            const baseNoTs = base.replace(/^\d+_/, '');
+            const candNorm = normalize(baseNoTs);
+            if (candNorm && targetNorm && candNorm === targetNorm) {
+              candidates.push({ Key: fullKey, LastModified: it.LastModified });
+              continue;
+            }
+            const decodedBase = base.replace(/\+/g, ' ');
+            if (decodedBase.endsWith(targetBaseRaw) || decodedBase === targetBaseRaw) {
+              candidates.push({ Key: fullKey, LastModified: it.LastModified });
+            }
+          }
+
+          if (candidates.length === 1) {
+            finalKey = candidates[0].Key;
+          } else if (candidates.length > 1) {
+            candidates.sort((a, b) => {
+              const ta = a.LastModified ? new Date(a.LastModified).getTime() : 0;
+              const tb = b.LastModified ? new Date(b.LastModified).getTime() : 0;
+              return tb - ta;
+            });
+            finalKey = candidates[0].Key;
+          } else {
+            const simpleMatch = items.find((it: any) => it.Key && it.Key.endsWith(targetBaseRaw));
+            if (simpleMatch && simpleMatch.Key) finalKey = simpleMatch.Key;
+          }
+        } catch (listErr: any) {
+          console.warn('Failed to list objects for fallback lookup:', listErr?.message || listErr);
+        }
+      }
+
+      // If still not found, and there's a configured secondary bucket, try that bucket
+      const secondary = process.env.SECONDARY_S3_BUCKET;
+      // compute original object basename for safer matching in nested callbacks
+      const originalBase = objectKey ? (objectKey.split('/').pop() || '') : '';
+      if (secondary && secondary !== finalBucket) {
+        try {
+          if (await exists(secondary, finalKey)) {
+            finalBucket = secondary;
+          } else if (user_id) {
+            // list in secondary bucket
+            const prefix2 = `${user_id}/`;
+            const listResp2: any = await s3Client!.send(new ListObjectsV2Command({ Bucket: secondary, Prefix: prefix2, MaxKeys: 1000 }));
+            const items2: any[] = listResp2.Contents || [];
+            const match2 = items2.find((it: any) => it.Key && (it.Key.endsWith(finalKey.split('/').pop() || '') || it.Key.endsWith(originalBase)));
+            if (match2 && match2.Key) {
+              finalKey = match2.Key;
+              finalBucket = secondary;
+            }
+          }
+        } catch (secErr: any) {
+          console.warn('Secondary bucket lookup failed:', secErr?.message || secErr);
+        }
+      }
+    }
+
+    // Finally generate presigned GET for whatever finalKey and bucket we have
+    const getCmd = new GetObjectCommand({ Bucket: finalBucket, Key: finalKey });
+    const downloadUrl = await require('@aws-sdk/s3-request-presigner').getSignedUrl(s3Client!, getCmd, { expiresIn: 3600 });
+
+    const objectUrl = `https://${finalBucket}.s3.${S3_REGION_NAME}.amazonaws.com/${encodeURIComponent(finalKey)}`;
+    res.json({ success: true, download_url: downloadUrl, object_url: objectUrl, key: finalKey, bucket: finalBucket });
+  } catch (error: any) {
+    console.error('Download presign error:', error?.response?.data || error.message || error);
+    res.status(500).json({ error: 'Failed to generate download URL', details: error.message });
   }
 });
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Upload, Sparkles, Folder, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { uploadManual, uploadAuto, pollRun, presignUpload, uploadToS3Presigned } from '../services/storageApi';
+import { uploadManual, uploadAuto, pollRun, presignUpload, uploadToS3Presigned, createFolder } from '../services/storageApi';
 import './UploadModal.css';
 
 interface UploadModalProps {
@@ -14,6 +14,8 @@ const UploadModal: React.FC<UploadModalProps> = ({ folder, onClose, onUploadComp
   const { user, token } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
+  const [activeTab, setActiveTab] = useState<'file' | 'folder'>('file');
+  const [newFolderName, setNewFolderName] = useState('');
   const [aiSort, setAiSort] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState<string>('');
@@ -26,7 +28,14 @@ const UploadModal: React.FC<UploadModalProps> = ({ folder, onClose, onUploadComp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !user || !token) return;
+    if (!user || !token) return;
+
+    if (activeTab === 'folder') {
+      // Folder creation handled in separate handler
+      return;
+    }
+
+    if (!file) return;
 
     setUploading(true);
     setStatus('Starting upload...');
@@ -78,70 +87,130 @@ const UploadModal: React.FC<UploadModalProps> = ({ folder, onClose, onUploadComp
     }
   };
 
+  const handleCreateFolder = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!user || !token) return;
+    if (!newFolderName || newFolderName.trim() === '') return setStatus('Folder name required');
+
+    setUploading(true);
+    setStatus('Creating folder...');
+
+    try {
+      const basePath = folder?.path || '/';
+      const normalizedBase = basePath === '/' ? '' : basePath.replace(/\/$/, '');
+      const targetPath = `${normalizedBase}/${newFolderName}`.replace(/\/+/g, '/');
+      // Ensure leading slash
+      const pathForApi = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
+
+      const result = await createFolder(token, user.id, pathForApi);
+      if (result.run_id) {
+        setStatus('Creating folder (processing)...');
+        const final = await pollRun(token, result.run_id);
+        if (final.state === 'DONE') {
+          setStatus('Folder created');
+          onUploadComplete?.();
+          setTimeout(() => onClose(), 800);
+        } else {
+          setStatus('Folder creation failed');
+          setUploading(false);
+        }
+      } else {
+        setStatus('Folder created');
+        onUploadComplete?.();
+        setTimeout(() => onClose(), 800);
+      }
+    } catch (err: any) {
+      console.error('Create folder error', err);
+      setStatus(err?.response?.data?.error || 'Failed to create folder');
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Upload File</h2>
+          <h2>{activeTab === 'file' ? 'Upload File' : 'Create Folder'}</h2>
           <button className="modal-close" onClick={onClose}>
             <X size={20} />
           </button>
         </div>
+        <div className="modal-tabs">
+          <button type="button" className={`tab ${activeTab === 'file' ? 'active' : ''}`} onClick={() => setActiveTab('file')}>File</button>
+          <button type="button" className={`tab ${activeTab === 'folder' ? 'active' : ''}`} onClick={() => setActiveTab('folder')}>Folder</button>
+        </div>
 
         <form onSubmit={handleSubmit} className="upload-form">
-          <div className="upload-area">
-            <input
-              type="file"
-              id="file-input"
-              onChange={handleFileChange}
-              className="file-input"
-            />
-            <label htmlFor="file-input" className="file-label">
-              <Upload size={32} />
-              <span className="upload-text">
-                {file ? file.name : 'Click to select or drag file here'}
-              </span>
-              <span className="upload-subtext">
-                {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Any file type supported'}
-              </span>
-            </label>
-          </div>
+          {activeTab === 'file' ? (
+            <>
+              <div className="upload-area">
+                <input
+                  type="file"
+                  id="file-input"
+                  onChange={handleFileChange}
+                  className="file-input"
+                />
+                <label htmlFor="file-input" className="file-label">
+                  <Upload size={32} />
+                  <span className="upload-text">
+                    {file ? file.name : 'Click to select or drag file here'}
+                  </span>
+                  <span className="upload-subtext">
+                    {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Any file type supported'}
+                  </span>
+                </label>
+              </div>
 
-          <div className="form-section">
-            <label htmlFor="description">Description (Optional)</label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add a brief description to help AI organize this file..."
-              rows={3}
-            />
-          </div>
+              <div className="form-section">
+                <label htmlFor="description">Description (Optional)</label>
+                <textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Add a brief description to help AI organize this file..."
+                  rows={3}
+                />
+              </div>
 
-          <div className="ai-sort-toggle">
-            <div className="toggle-header">
-              <div className="toggle-info">
-                <Sparkles size={20} />
-                <div>
-                  <h4>AI Smart Sort</h4>
-                  <p>Let AI automatically organize this file</p>
+              <div className="ai-sort-toggle">
+                <div className="toggle-header">
+                  <div className="toggle-info">
+                    <Sparkles size={20} />
+                    <div>
+                      <h4>AI Smart Sort</h4>
+                      <p>Let AI automatically organize this file</p>
+                    </div>
+                  </div>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={aiSort}
+                      onChange={(e) => setAiSort(e.target.checked)}
+                    />
+                    <span className="slider"></span>
+                  </label>
                 </div>
               </div>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={aiSort}
-                  onChange={(e) => setAiSort(e.target.checked)}
-                />
-                <span className="slider"></span>
-              </label>
-            </div>
-          </div>
 
-          {!aiSort && (
-            <div className="folder-select">
-              <Folder size={18} />
-              <span>Uploading to: {folder?.name || 'My Files'}</span>
+              {!aiSort && (
+                <div className="folder-select">
+                  <Folder size={18} />
+                  <span>Uploading to: {folder?.name || 'My Files'}</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="folder-create">
+              <div className="form-section">
+                <label htmlFor="folderName">Folder name</label>
+                <input
+                  id="folderName"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="New folder name"
+                />
+                <p className="small">Parent: {folder?.path || '/'}</p>
+              </div>
             </div>
           )}
 
@@ -155,9 +224,15 @@ const UploadModal: React.FC<UploadModalProps> = ({ folder, onClose, onUploadComp
             <button type="button" className="button secondary" onClick={onClose} disabled={uploading}>
               Cancel
             </button>
-            <button type="submit" className="button primary" disabled={!file || uploading}>
-              {uploading ? 'Uploading...' : 'Upload'}
-            </button>
+            {activeTab === 'file' ? (
+              <button type="submit" className="button primary" disabled={!file || uploading}>
+                {uploading ? 'Uploading...' : 'Upload'}
+              </button>
+            ) : (
+              <button type="button" className="button primary" onClick={handleCreateFolder} disabled={!newFolderName.trim() || uploading}>
+                {uploading ? 'Creating...' : 'Create Folder'}
+              </button>
+            )}
           </div>
         </form>
       </div>

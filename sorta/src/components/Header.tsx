@@ -11,7 +11,9 @@ const Header: React.FC = () => {
   return (
     <header className="header">
       <div className="header-left">
-        <h1 className="header-logo">Sorta</h1>
+        <h1 className="header-logo">
+          <img src="./Sorta-logo.png" alt="Sorta" className="header-logo-img" />
+        </h1>
         <div className="search-bar">
           <Search size={18} />
           <input type="text" placeholder="Search files..." />

@@ -22,10 +22,12 @@
 }
 
 .auth-logo {
-  font-size: 2.5rem;
-  font-weight: 600;
-  color: var(--accent-primary);
   margin-bottom: 0.5rem;
+}
+
+.auth-logo-img {
+  height: 56px;
+  display: inline-block;
 }
 
 .auth-subtitle {

@@ -233,6 +233,47 @@ input:checked + .slider:before {
   padding-top: 0.5rem;
 }
 
+.modal-tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem 0 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.02));
+}
+
+.tab {
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tab.active {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.folder-create .form-section input,
+.folder-create input#folderName {
+  padding: 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  width: 100%;
+  font-size: 0.95rem;
+}
+
+.small {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.4rem;
+}
+
 .button {
   flex: 1;
   padding: 0.75rem;
